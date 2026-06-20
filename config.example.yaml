@@ -1,0 +1,23 @@
+# bms-monitor configuration — copy to /etc/bms-monitor/config.yaml
+# CLI flags override these values; any key omitted falls back to its default.
+
+serial:
+  port: /dev/ttyUSB0
+  baud: 9600
+  address: 0
+  read_timeout_ms: 2000
+
+poll:
+  interval_seconds: 15          # how often to read the BMS
+
+storage:
+  path: /var/lib/bms-monitor/samples.db
+  retention_days: 30            # 0 = forever; deletes older samples on startup
+  flush_interval_seconds: 10    # max seconds a buffered sample waits before a DB write
+  max_batch: 50                 # max buffered samples before forcing a DB write
+
+web:
+  listen: ":8080"               # loaded + validated; HTTP server arrives in Slice 3
+
+logging:
+  level: info                   # debug, info, warn, error

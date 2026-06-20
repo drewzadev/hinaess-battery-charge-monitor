@@ -1,0 +1,22 @@
+# Analog-data response fixture for the decode tests (Implementation step 6 / Q5).
+#
+# PROVENANCE: SYNTHETIC — pending real capture.
+#   Q5 (Option A) calls for a frame captured from the live pack via the reference
+#   tool (`python3 /opt/ha-hinaess-powergem/src/hinaess-powergem-monitor.py
+#   --port <port> --debug`, the `RX <` line). No BMS hardware is attached in this
+#   environment and no real capture exists anywhere in either repo, so this is the
+#   Q5 Option-(b) stopgap: a hand-built frame with a correctly computed checksum.
+#
+#   TO REPLACE WITH A REAL FRAME: run the reference against the pack with --debug,
+#   copy the cleaned hex from its `RX < ...` line (SOI/EOI already stripped,
+#   hex-only, uppercased — see src/serial_reader.py:98-111) into the line below,
+#   then update the expected values in TestParseAnalogDecode to the decoded reals.
+#
+# This is the cleaned response frame parseFrame consumes (no '~'/CR), i.e.
+#   ver=21 addr=00 cid1=46 cid2=00(RTN-OK) length=8068 INFO(104 hex) checksum.
+# Decoded values (see TestParseAnalogDecode): 16 cells @ 3300 mV; t1/t2 = 25.1 °C;
+# current -10000 mA (discharge); pack 52800 mV; remain 100000 / full 200000 mAh;
+# 42 cycles; SOC 75 %; SOH 98 %.
+#
+# Lines beginning with '#' and surrounding whitespace are ignored by the loader.
+21004600806800100CE40CE40CE40CE40CE40CE40CE40CE40CE40CE40CE40CE40CE40CE40CE40CE4020BA60BA6FC1814A02710054E20002A4B62E665

@@ -1,0 +1,12 @@
+[Unit]
+Description=Battery Cell Balancing Monitor
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/bms-monitor serve --config /etc/bms-monitor/config.yaml
+Restart=on-failure
+RestartSec=10
+StateDirectory=bms-monitor
+
+[Install]
+WantedBy=multi-user.target

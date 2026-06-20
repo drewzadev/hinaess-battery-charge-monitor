@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="bms-monitor">
+  <!-- battery body -->
+  <rect x="3" y="9" width="22" height="14" rx="2.5"
+        fill="#1c2027" stroke="#8a93a2" stroke-width="2"/>
+  <!-- positive terminal nub -->
+  <rect x="26" y="13" width="3" height="6" rx="1" fill="#8a93a2"/>
+  <!-- green charge fill -->
+  <rect x="6" y="12" width="14" height="8" rx="1" fill="#5dd28f"/>
+</svg>

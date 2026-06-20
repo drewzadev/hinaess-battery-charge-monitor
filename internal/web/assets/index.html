@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bms-monitor</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/uplot.min.css">
+  <style>
+    :root {
+      --bg: #14171c;
+      --panel: #1c2027;
+      --border: #2a2f38;
+      --fg: #e6e9ef;
+      --muted: #8a93a2;
+      --accent: #4ea1ff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+    }
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo { display: block; }
+    /* Live header row of pack/cell metrics, refreshed every 5 s from /api/latest. */
+    #metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .metric {
+      display: flex;
+      flex-direction: column;
+      min-width: 84px;
+    }
+    .metric .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .metric .value {
+      font-size: 20px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+    #updated {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    main {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .chart {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    /* Reserve canvas height so destroy/rebuild does not collapse the section (anti-jump). */
+    #chart-cells { min-height: 320px; }
+    #chart-delta { min-height: 200px; }
+    #chart-pack  { min-height: 220px; }
+    /* The hidden attribute must win over the display rules below, which would
+       otherwise override the UA [hidden] { display: none } at equal specificity. */
+    .spinner-overlay[hidden],
+    .custom-range[hidden] { display: none; }
+    .spinner-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(20, 23, 28, 0.55); /* var(--bg) at ~55% */
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .chart h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .ranges {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .ranges button {
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .ranges button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    /* Custom date/time window picker, revealed only when "custom" is active. */
+    .custom-range {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .custom-range label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .custom-range input,
+    .custom-range button {
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .custom-range button {
+      cursor: pointer;
+    }
+    .custom-error {
+      color: #ff5d5d;
+    }
+    /* uPlot dark-theme tweaks (the shipped single theme, Non-goal 3). */
+    .uplot, .u-title { color: var(--fg); }
+    .u-legend { color: var(--muted); font-size: 12px; }
+    .u-axis { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img class="logo" src="/static/favicon.svg" alt="" width="20" height="20">bms-monitor</h1>
+    <div id="metrics">
+      <div class="metric"><span class="label">Pack V</span><span class="value" id="m-pack-v">–</span></div>
+      <div class="metric"><span class="label">Pack A</span><span class="value" id="m-pack-a">–</span></div>
+      <div class="metric"><span class="label">SOC</span><span class="value" id="m-soc">–</span></div>
+      <div class="metric"><span class="label">Cell Δ</span><span class="value" id="m-delta">–</span></div>
+      <div class="metric"><span class="label">Min cell</span><span class="value" id="m-min">–</span></div>
+      <div class="metric"><span class="label">Max cell</span><span class="value" id="m-max">–</span></div>
+    </div>
+    <div id="updated">no data yet</div>
+  </header>
+
+  <main>
+    <div class="ranges" id="ranges">
+      <button data-range="1h">1h</button>
+      <button data-range="6h">6h</button>
+      <button data-range="12h">12h</button>
+      <button data-range="24h" class="active">24h</button>
+      <button data-range="7d">7d</button>
+      <button data-range="all">all</button>
+      <button data-range="custom">custom</button>
+    </div>
+
+    <div class="custom-range" id="custom-range" hidden>
+      <label>From <input type="datetime-local" id="custom-from"></label>
+      <label>To <input type="datetime-local" id="custom-to"></label>
+      <button id="custom-apply">Apply</button>
+      <span class="custom-error" id="custom-error"></span>
+    </div>
+
+    <section class="chart">
+      <h2>Cell voltages (mV)</h2>
+      <div id="chart-cells"></div>
+      <div class="spinner-overlay" hidden><div class="spinner"></div></div>
+    </section>
+
+    <section class="chart">
+      <h2>Cell delta — max − min (mV)</h2>
+      <div id="chart-delta"></div>
+      <div class="spinner-overlay" hidden><div class="spinner"></div></div>
+    </section>
+
+    <section class="chart">
+      <h2>Pack voltage &amp; current</h2>
+      <div id="chart-pack"></div>
+      <div class="spinner-overlay" hidden><div class="spinner"></div></div>
+    </section>
+  </main>
+
+  <script src="/static/uplot.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
